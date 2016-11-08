@@ -1,8 +1,8 @@
 package hashring
 
 import (
-	"crypto/md5"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"sort"
 )
@@ -91,10 +91,10 @@ func (h *HashRing) generateCircle() {
 
 		for j := 0; j < int(factor); j++ {
 			nodeKey := fmt.Sprintf("%s-%d", node, j)
-			bKey := hashDigest(nodeKey)
 
 			for i := 0; i < 3; i++ {
-				key := hashVal(bKey[i*4 : i*4+4])
+				nodeKeyWithRepeat := fmt.Sprintf("%s-%d", nodeKey, i)
+				key := hash(nodeKeyWithRepeat)
 				h.ring[key] = node
 				h.sortedKeys = append(h.sortedKeys, key)
 			}
@@ -131,8 +131,7 @@ func (h *HashRing) GetNodePos(stringKey string) (pos int, ok bool) {
 }
 
 func (h *HashRing) GenKey(key string) HashKey {
-	bKey := hashDigest(key)
-	return hashVal(bKey[0:4])
+	return hash(key)
 }
 
 func (h *HashRing) GetNodes(stringKey string, size int) (nodes []string, ok bool) {
@@ -257,15 +256,8 @@ func (h *HashRing) RemoveNode(node string) *HashRing {
 	return hashRing
 }
 
-func hashVal(bKey []byte) HashKey {
-	return ((HashKey(bKey[3]) << 24) |
-		(HashKey(bKey[2]) << 16) |
-		(HashKey(bKey[1]) << 8) |
-		(HashKey(bKey[0])))
-}
-
-func hashDigest(key string) []byte {
-	m := md5.New()
+func hash(key string) HashKey {
+	m := fnv.New32a()
 	m.Write([]byte(key))
-	return m.Sum(nil)
+	return HashKey(m.Sum32())
 }
